@@ -2,23 +2,42 @@ import java.awt.BorderLayout;
 import java.awt.Container;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.Scanner;
 
 import javax.swing.JButton;
+import javax.swing.JFileChooser;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
+import javax.swing.filechooser.*;
 
 
 public class MainFrame extends JFrame {
 
 	private static final long serialVersionUID = 1L;
+
+	JButton chooseButton;
+	JButton convertButton;
+	JTextArea msg;
+	//Create a file chooser
+	JFileChooser fc = new JFileChooser();
+	File file;
+	String filename;
+	File path;
 
 	public MainFrame(String title) {
 		setTitle(title);
@@ -28,27 +47,34 @@ public class MainFrame extends JFrame {
 
 		JTextArea text = new JTextArea();
 		text.setEditable(false);
-		text.setText("Thanks for using, any problem contact the author: Miao Sun\nWechat: 261125225\nEmail: miaosun88@gmail.com\n");
+		text.setText("Thanks for using, copyright reserved.\nAuthor: Miao Sun\nWechat: 261125225\nEmail: miaosun88@gmail.com\n\t\tWarning:\nCan only be used for SAPT PT XML files, don't try other files!\n");
 		container.add(text, BorderLayout.NORTH);
-		
+
 		//
-		// choose file area
+		// choose file area + convert file
 		//
 		JPanel filePanel = new JPanel();
-		JButton chooseButton = new JButton("Choose file");
-		chooseButton.setToolTipText("Choose the saft pt file to convert");
-		filePanel.add(chooseButton);
-		
-		container.add(filePanel, BorderLayout.CENTER);
+		chooseButton = new JButton("Choose file...");
+		convertButton = new JButton("Convert");
 
+		chooseButton.setToolTipText("Choose the saft pt file to convert");
+		convertButton.setToolTipText("Convert the selected saft pt file");
+		filePanel.add(chooseButton);
+		filePanel.add(convertButton);
+
+		container.add(filePanel, BorderLayout.CENTER);		
 		chooseButton.addActionListener(new ChooseFileActionListener());
-		
+		convertButton.addActionListener(new convertActionListener());
+
 		//
 		// message
 		//
-		JTextArea msg = new JTextArea();
+		msg = new JTextArea(13,10);
 		msg.setEditable(false);
-		container.add(msg, BorderLayout.SOUTH);
+
+		JScrollPane msgPane = new JScrollPane(msg);
+
+		container.add(msgPane, BorderLayout.SOUTH);
 
 		// Menu bar
 		JMenuBar menuBar = new JMenuBar();
@@ -85,9 +111,9 @@ public class MainFrame extends JFrame {
 		this.setJMenuBar(menuBar);
 
 		this.pack();
-		
+
 	}
-	
+
 
 	/**
 	 *  GIVEN:  Look And Feel
@@ -169,7 +195,7 @@ public class MainFrame extends JFrame {
 			}
 		}
 	}
-	
+
 	/**
 	 *  When the "Exit" menu option is clicked, the application will be closed.
 	 */
@@ -191,11 +217,11 @@ public class MainFrame extends JFrame {
 
 		@Override
 		public void actionPerformed(ActionEvent e) {
-			JOptionPane.showMessageDialog(rootPane, "SAFT PT Converter ver 1.0\nThanks for using, enjoy!\nAny problem contact the author\nMiao Sun: m.sun@cranfield.ac.uk");
+			JOptionPane.showMessageDialog(rootPane, "SAFT PT Converter ver 1.0\nThanks for using, enjoy!\nCopyright reserved.\nAuthor: Miao Sun\nWechat: 261125225\nEmail: miaosun88@gmail.com");
 		}
 
 	}
-	
+
 	/**
 	 *  When the "About" menu option is clicked, some useful information will show up in a new dialog window.
 	 */
@@ -203,13 +229,118 @@ public class MainFrame extends JFrame {
 
 		@Override
 		public void actionPerformed(ActionEvent e) {
-			
-		}
 
+			int returnVal = fc.showOpenDialog(MainFrame.this);
+
+			if (returnVal == JFileChooser.APPROVE_OPTION) {
+				file = fc.getSelectedFile();
+				path = fc.getCurrentDirectory();
+				filename = file.getName();
+				String file_extension = filename.substring(filename.length()-4);
+
+				if(!file_extension.equals(".xml") && !file_extension.equals(".XML"))
+					JOptionPane.showMessageDialog(rootPane, "Error: must be SAFT PT XML file!");
+				else
+					msg.append("Opening: " + file.getName() + ".\n");
+			} else {
+				msg.append("Open command cancelled by user.\n");
+			}
+			msg.setCaretPosition(msg.getDocument().getLength());
+		}
 	}
-	
-	
-	public void processFile() {
-		
+
+
+	public class convertActionListener implements ActionListener {
+		//Scanner sc = new Scanner(System.in);
+
+		//System.out.println("Please insert the file name to be converted: ");
+		//String filename = sc.nextLine();
+		@Override
+		public void actionPerformed(ActionEvent e) {
+			filename = file.getName();
+			String file_extension = filename.substring(filename.length()-4);
+
+			if(!file_extension.equals(".xml") && !file_extension.equals(".XML"))
+				JOptionPane.showMessageDialog(rootPane, "Error: Select a SAFT PT XML file first!");
+			else
+			{
+				try {
+					String line = "";
+					String line2 = "";
+
+					BufferedReader fromFile0 = new BufferedReader(new FileReader(file));
+					BufferedReader fromFile = new BufferedReader(new FileReader(file));
+
+					double sum = 0.0;
+					while((line = fromFile0.readLine()) != null)
+					{
+						if(line.contains("<GrossTotal>"))
+						{
+							line2 = line.substring(line.indexOf("al>")+3, line.indexOf("</Gr"));
+
+							sum += Double.parseDouble(line2);
+						}
+					}
+
+					fromFile0.close();
+
+					FileWriter xmlWriter = new FileWriter(path+"/NEW_"+filename, false);
+
+					double price = 0.0;
+					while((line = fromFile.readLine()) != null)
+					{
+						if(line.contains("<TaxPayable>"))
+						{
+							xmlWriter.write("                    <TaxPayable>0.0000</TaxPayable>\n");
+						}
+						else if(line.contains("<TotalCredit>0</TotalCredit>"))
+						{
+							xmlWriter.write(line+"\n");
+						}
+						else if(line.contains("<TotalCredit>"))
+						{
+							xmlWriter.write("            <TotalCredit>"+new DecimalFormat("#0.0000").format(sum)+"</TotalCredit>\n");
+						}
+						else if(line.contains("<UnitPrice>"))
+						{
+							line2 = line.substring(line.indexOf("ce>")+3, line.indexOf("</Uni"));
+							price = Double.parseDouble(line2) * 1.23;
+							line2 = new DecimalFormat("#0.00").format(price);
+							price = Double.parseDouble(line2);
+							xmlWriter.write("                    <UnitPrice>"+new DecimalFormat("#0.0000").format(price)+"</UnitPrice>\n");
+						}
+						else if(line.contains("<CreditAmount>"))
+						{
+							line2 = line.substring(line.indexOf("nt>")+3, line.indexOf("</Cre"));
+							price = Double.parseDouble(line2) * 1.23;
+							line2 = new DecimalFormat("#0.00").format(price);
+							price = Double.parseDouble(line2);
+							xmlWriter.write("                    <CreditAmount>"+new DecimalFormat("#0.0000").format(price)+"</CreditAmount>\n");
+						}
+						else if(line.contains("<NetTotal>"))
+						{
+							//line = fromFile.readLine();
+						}
+						else if(line.contains("<GrossTotal>"))
+						{
+							line2 = line.substring(line.indexOf("al>")+3, line.indexOf("</Gr"));
+							xmlWriter.write("                    <NetTotal>"+line2+"</NetTotal>\n");
+							xmlWriter.write(line+"\n");
+						}
+						else
+							xmlWriter.write(line+"\n");
+					}
+
+					fromFile.close();
+					xmlWriter.close();
+					msg.append("New_"+filename + " generated successfully!\n");
+
+				} catch (FileNotFoundException e1) {
+					JOptionPane.showMessageDialog(rootPane, "No such file or directory! Try again!");
+				} catch (IOException e1) {
+					JOptionPane.showMessageDialog(rootPane, e1);
+				}
+			}
+		}
 	}
 }
